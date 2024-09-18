@@ -1,3 +1,5 @@
 spring:
   application:
-    name: orhcestrator
+    name: orchestrator
+server:
+  port: 7018
