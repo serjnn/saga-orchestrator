@@ -24,12 +24,13 @@ public class OrchService {
     private final BucketStep bucketStep;
     private final OrderStep orderStep;
 
-    private List<SagaStep> getSteps(){
-        return List.of(bucketStep,clientBalanceStep,orderStep);
+    private List<SagaStep> getSteps() {
+        return List.of(bucketStep, clientBalanceStep, orderStep);
     }
 
 
     public Mono<Void> start(OrderDTO orderDTO) {
+        System.out.println("я сказала стартуем");
         return Flux.fromIterable(getSteps())
                 .concatMap(step -> step.process(orderDTO)
                         .flatMap(success -> {
@@ -39,11 +40,12 @@ public class OrchService {
                             }
                             return Mono.just(success);
                         }))
-                .then()
-                .doFinally(this::resetSteps);
+                .then();
 
 
     }
+
+
 
     private void resetSteps(SignalType signalType) {
         getSteps().forEach(SagaStep::resetStep);
@@ -57,4 +59,8 @@ public class OrchService {
     }
 
 
+    public Mono<Boolean> test(OrderDTO orderDTO) {
+       return clientBalanceStep.process(orderDTO);
+
+    }
 }

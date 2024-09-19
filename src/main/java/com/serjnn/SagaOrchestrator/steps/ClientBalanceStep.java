@@ -24,7 +24,7 @@ public class ClientBalanceStep implements SagaStep {
 
         return webClient.post()
                 .uri("lb://client/api/v1/deduct")
-                .body(BodyInserters.fromValue(orderDTO.getClientID()))
+                .body(BodyInserters.fromValue(orderDTO))
                 .retrieve()
                 .bodyToMono(Boolean.class)
                 .onErrorReturn(false);
@@ -36,7 +36,7 @@ public class ClientBalanceStep implements SagaStep {
         {
             return webClient.post()
                     .uri("lb://client/api/v1/restore")
-                    .body(BodyInserters.fromValue(orderDTO.getClientID()))
+                    .body(BodyInserters.fromValue(orderDTO.getTotalSum()))
                     .retrieve()
                     .bodyToMono(Boolean.class)
                     .onErrorReturn(false);
