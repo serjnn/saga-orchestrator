@@ -29,21 +29,22 @@ public class OrchService {
     }
 
 
-    public Mono<Void> start(OrderDTO orderDTO) {
+    public Mono<Boolean> start(OrderDTO orderDTO) {
         System.out.println("я сказала стартуем");
         return Flux.fromIterable(getSteps())
                 .concatMap(step -> step.process(orderDTO)
                         .flatMap(success -> {
-                            if (!success) {
-
-                                return this.revert(orderDTO);
+                            if (success) {
+                                step.setStatus(SagaStepStatus.COMPLETE); // Устанавливаем статус COMPLETE
+                                return Mono.just(true);
+                            } else {
+                                step.setStatus(SagaStepStatus.FAILED); // Устанавливаем статус FAILED
+                                return this.revert(orderDTO).then(Mono.just(false)); // Выполняем откат в случае ошибки
                             }
-                            return Mono.just(success);
                         }))
-                .then();
-
-
+                .then(Mono.just(true)); // Возвращаем успех после выполнения всех шагов
     }
+
 
 
 
@@ -54,9 +55,10 @@ public class OrchService {
     private Mono<Void> revert(OrderDTO orderDTO) {
         return Flux.fromIterable(getSteps())
                 .filter(step -> step.getStatus() == SagaStepStatus.COMPLETE)
-                .flatMap(step -> step.revert(orderDTO))
+                .concatMap(step -> step.revert(orderDTO))
                 .then();
     }
+
 
 
     public Mono<Boolean> test(OrderDTO orderDTO) {
