@@ -26,22 +26,39 @@ public class OrderStep implements SagaStep {
         return webClient.post()
                 .uri("lb://order/api/v1/create")
                 .body(BodyInserters.fromValue(orderDTO))
-                .retrieve()
-                .bodyToMono(Boolean.class)
-                .onErrorReturn(false);
+                .exchangeToMono(response -> {
+                    if (response.statusCode().is2xxSuccessful()) {
+                        setStatus(SagaStepStatus.COMPLETE);
+                        System.out.println("order " + getStatus());
+                        return Mono.just(true);
+                    } else {
+                        setStatus(SagaStepStatus.FAILED);
+                        System.out.println("order failed with status: " + response.statusCode());
+                        return Mono.just(false);
+                    }
+                })
+                .onErrorResume(e -> {
+                    System.out.println("order service is unavailable, triggering rollback.");
+                    setStatus(SagaStepStatus.FAILED);
+                    return Mono.error(new RuntimeException("order service is unavailable"));
+                });
     }
+
+
+
 
 
     @Override
     public Mono<Boolean> revert(OrderDTO orderDTO) {
-        {
-            return webClient.post()
+        System.out.println("order revert");
+
+        return webClient.post()
                     .uri("lb://order/api/v1/remove")
                     .body(BodyInserters.fromValue(orderDTO.getOrderId()))
                     .retrieve()
                     .bodyToMono(Boolean.class)
                     .onErrorReturn(false);
-        }
+
     }
     @Override
     public SagaStepStatus getStatus() {
