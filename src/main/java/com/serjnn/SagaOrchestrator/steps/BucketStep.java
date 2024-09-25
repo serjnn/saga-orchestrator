@@ -11,7 +11,7 @@ import reactor.core.publisher.Mono;
 public class BucketStep implements SagaStep {
 
 
-    private SagaStepStatus status = SagaStepStatus.PENDING;
+    private SagaStepStatus status;
 
     public BucketStep(WebClient.Builder webClientBuilder) {
         this.webClient = webClientBuilder.build();
@@ -24,25 +24,47 @@ public class BucketStep implements SagaStep {
     @Override
     public Mono<Boolean> process(OrderDTO orderDTO) {
         System.out.println("bucket process");
+
         return webClient.post()
                 .uri("lb://bucket/api/v1/clear")
                 .body(BodyInserters.fromValue(orderDTO.getClientID()))
-                .retrieve()
-                .bodyToMono(Boolean.class)
-                .onErrorReturn(false);
+                .exchangeToMono(response -> {
+                    if (response.statusCode().is2xxSuccessful()) {
+                        setStatus(SagaStepStatus.COMPLETE);
+                        System.out.println("bucket " + getStatus());
+
+                        return Mono.just(true);
+                    } else {
+                        setStatus(SagaStepStatus.FAILED);
+                        System.out.println("bucket " + getStatus());
+
+                        return Mono.just(false);
+                    }
+                })
+                .onErrorResume(e -> {
+                    System.out.println("Bucket service is unavailable, triggering rollback.");
+                    setStatus(SagaStepStatus.FAILED);
+                    return Mono.error(new RuntimeException("Bucket service is unavailable"));
+                });
     }
+
+
 
 
     @Override
     public Mono<Boolean> revert(OrderDTO orderDTO) {
-        {
-            return webClient.post()
+        System.out.println("bucket revert");
+
+        return webClient.post()
                     .uri("lb://bucket/api/v1/restore")
                     .body(BodyInserters.fromValue(orderDTO))
                     .retrieve()
                     .bodyToMono(Boolean.class)
-                    .onErrorReturn(false);
-        }
+                .onErrorResume(e -> {
+                    System.out.println("Bucket service is unavailable, triggering rollback.");
+                    return Mono.error(new RuntimeException("Bucket service is unavailable"));
+                });
+
     }
 
     @Override

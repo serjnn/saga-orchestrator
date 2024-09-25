@@ -25,25 +25,38 @@ public class OrchService {
     private final OrderStep orderStep;
 
     private List<SagaStep> getSteps() {
-        return List.of(bucketStep, clientBalanceStep, orderStep);
+        return List.of( clientBalanceStep,bucketStep, orderStep);
     }
 
 
     public Mono<Boolean> start(OrderDTO orderDTO) {
-        System.out.println("я сказала стартуем");
+        System.out.println("starting transaction");
+
         return Flux.fromIterable(getSteps())
                 .concatMap(step -> step.process(orderDTO)
                         .flatMap(success -> {
                             if (success) {
-                                step.setStatus(SagaStepStatus.COMPLETE); // Устанавливаем статус COMPLETE
+                                step.setStatus(SagaStepStatus.COMPLETE);
                                 return Mono.just(true);
                             } else {
-                                step.setStatus(SagaStepStatus.FAILED); // Устанавливаем статус FAILED
-                                return this.revert(orderDTO).then(Mono.just(false)); // Выполняем откат в случае ошибки
+                                step.setStatus(SagaStepStatus.FAILED);
+
+                                return this.revert(orderDTO).then(Mono.just(false));
                             }
+                        })
+                        .onErrorResume(e -> {
+                            System.out.println("Error in process: " + e.getMessage() + ", triggering rollback.");
+                            step.setStatus(SagaStepStatus.FAILED);
+
+                            return this.revert(orderDTO).then(Mono.just(false));
                         }))
-                .then(Mono.just(true)); // Возвращаем успех после выполнения всех шагов
+                .takeWhile(success -> success)
+                .then(Mono.just(true))
+                .doFinally(this::resetSteps);
     }
+
+
+
 
 
 
@@ -65,4 +78,10 @@ public class OrchService {
        return clientBalanceStep.process(orderDTO);
 
     }
+
+    public List<SagaStepStatus> getStatuses(){
+        return getSteps().stream().map(SagaStep::getStatus).toList();
+    }
+
+
 }
