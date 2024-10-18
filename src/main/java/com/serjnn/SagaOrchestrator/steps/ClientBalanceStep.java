@@ -28,11 +28,10 @@ public class ClientBalanceStep implements SagaStep {
                 .exchangeToMono(response -> {
                     if (response.statusCode().is2xxSuccessful()) {
                         setStatus(SagaStepStatus.COMPLETE);
-                        System.out.println("Balance " + getStatus());
+                        System.out.println("Client " + getStatus());
                         return Mono.just(true);
                     } else {
                         setStatus(SagaStepStatus.FAILED);
-                        System.out.println("Balance " + getStatus());
                         System.out.println("client failed with status: " + response.statusCode());
                         return Mono.just(false);
                     }

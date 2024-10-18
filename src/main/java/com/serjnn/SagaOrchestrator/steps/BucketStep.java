@@ -36,7 +36,7 @@ public class BucketStep implements SagaStep {
                         return Mono.just(true);
                     } else {
                         setStatus(SagaStepStatus.FAILED);
-                        System.out.println("bucket " + getStatus());
+                        System.out.println("client failed with status: " + response.statusCode());
 
                         return Mono.just(false);
                     }

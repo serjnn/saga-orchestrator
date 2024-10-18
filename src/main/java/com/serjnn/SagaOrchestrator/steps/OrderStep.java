@@ -33,7 +33,6 @@ public class OrderStep implements SagaStep {
                         return Mono.just(true);
                     } else {
                         setStatus(SagaStepStatus.FAILED);
-                        System.out.println("order " + getStatus());
                         System.out.println("order failed with status: " + response.statusCode());
                         return Mono.just(false);
                     }

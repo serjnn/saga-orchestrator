@@ -25,7 +25,7 @@ public class OrchService {
     private final OrderStep orderStep;
 
     private List<SagaStep> getSteps() {
-        return List.of( clientBalanceStep,bucketStep, orderStep);
+        return List.of(clientBalanceStep, bucketStep, orderStep);
     }
 
 
@@ -56,11 +56,6 @@ public class OrchService {
     }
 
 
-
-
-
-
-
     private void resetSteps(SignalType signalType) {
         getSteps().forEach(SagaStep::resetStep);
     }
@@ -70,17 +65,6 @@ public class OrchService {
                 .filter(step -> step.getStatus() == SagaStepStatus.COMPLETE)
                 .concatMap(step -> step.revert(orderDTO))
                 .then();
-    }
-
-
-
-    public Mono<Boolean> test(OrderDTO orderDTO) {
-       return clientBalanceStep.process(orderDTO);
-
-    }
-
-    public List<SagaStepStatus> getStatuses(){
-        return getSteps().stream().map(SagaStep::getStatus).toList();
     }
 
 
