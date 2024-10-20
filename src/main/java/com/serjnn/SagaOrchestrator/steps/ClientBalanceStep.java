@@ -2,11 +2,13 @@ package com.serjnn.SagaOrchestrator.steps;
 
 import com.serjnn.SagaOrchestrator.dto.OrderDTO;
 import com.serjnn.SagaOrchestrator.enums.SagaStepStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 @Component
+@Slf4j
 public class ClientBalanceStep implements SagaStep {
     private SagaStepStatus status;
 
@@ -20,7 +22,7 @@ public class ClientBalanceStep implements SagaStep {
 
     @Override
     public Mono<Boolean> process(OrderDTO orderDTO) {
-        System.out.println("client process");
+        log.info("client process");
 
         return webClient.post()
                 .uri("lb://client/api/v1/deduct")
@@ -28,16 +30,15 @@ public class ClientBalanceStep implements SagaStep {
                 .exchangeToMono(response -> {
                     if (response.statusCode().is2xxSuccessful()) {
                         setStatus(SagaStepStatus.COMPLETE);
-                        System.out.println("Client " + getStatus());
                         return Mono.just(true);
                     } else {
                         setStatus(SagaStepStatus.FAILED);
-                        System.out.println("client failed with status: " + response.statusCode());
+                        log.info("client failed with status: " + response.statusCode());
                         return Mono.just(false);
                     }
                 })
                 .onErrorResume(e -> {
-                    System.out.println("Client service is unavailable, triggering rollback.");
+                    log.info("Client service is unavailable, triggering rollback.");
                     setStatus(SagaStepStatus.FAILED);
                     return Mono.error(new RuntimeException("Client service is unavailable"));
                 });
@@ -48,28 +49,19 @@ public class ClientBalanceStep implements SagaStep {
 
     @Override
     public Mono<Boolean> revert(OrderDTO orderDTO) {
-        System.out.println("client revert");
+        log.info("client revert");
 
         return webClient.post()
-                    .uri("lb://client/api/v1/restore")
-                    .body(BodyInserters.fromValue(orderDTO))
-                    .exchangeToMono(response -> {
-            if (response.statusCode().is2xxSuccessful()) {
-                setStatus(SagaStepStatus.COMPLETE);
-
-                return Mono.just(true);
-            } else {
-                setStatus(SagaStepStatus.FAILED);
-
-                return Mono.just(false);
-            }
-        })
+                .uri("lb://client/api/v1/restore")
+                .body(BodyInserters.fromValue(orderDTO))
+                .retrieve()
+                .bodyToMono(Boolean.class)
                 .onErrorResume(e -> {
-                    System.out.println("Client service is unavailable, triggering rollback.");
-                    setStatus(SagaStepStatus.FAILED);
+                    log.info("Client service is unavailable, triggering rollback.");
                     return Mono.error(new RuntimeException("Client service is unavailable"));
                 });
-        }
+
+    }
 
     @Override
     public SagaStepStatus getStatus() {

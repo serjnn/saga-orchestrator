@@ -2,12 +2,14 @@ package com.serjnn.SagaOrchestrator.steps;
 
 import com.serjnn.SagaOrchestrator.dto.OrderDTO;
 import com.serjnn.SagaOrchestrator.enums.SagaStepStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 @Component
+@Slf4j
 public class BucketStep implements SagaStep {
 
 
@@ -23,7 +25,7 @@ public class BucketStep implements SagaStep {
 
     @Override
     public Mono<Boolean> process(OrderDTO orderDTO) {
-        System.out.println("bucket process");
+        log.info("bucket process");
 
         return webClient.post()
                 .uri("lb://bucket/api/v1/clear")
@@ -31,18 +33,17 @@ public class BucketStep implements SagaStep {
                 .exchangeToMono(response -> {
                     if (response.statusCode().is2xxSuccessful()) {
                         setStatus(SagaStepStatus.COMPLETE);
-                        System.out.println("bucket " + getStatus());
 
                         return Mono.just(true);
                     } else {
                         setStatus(SagaStepStatus.FAILED);
-                        System.out.println("client failed with status: " + response.statusCode());
+                        log.info("Bucket failed with status: " + response.statusCode());
 
                         return Mono.just(false);
                     }
                 })
                 .onErrorResume(e -> {
-                    System.out.println("Bucket service is unavailable, triggering rollback.");
+                    log.info("Bucket service is unavailable, triggering rollback.");
                     setStatus(SagaStepStatus.FAILED);
                     return Mono.error(new RuntimeException("Bucket service is unavailable"));
                 });
@@ -53,7 +54,7 @@ public class BucketStep implements SagaStep {
 
     @Override
     public Mono<Boolean> revert(OrderDTO orderDTO) {
-        System.out.println("bucket revert");
+        log.info("bucket revert");
 
         return webClient.post()
                     .uri("lb://bucket/api/v1/restore")
@@ -61,7 +62,7 @@ public class BucketStep implements SagaStep {
                     .retrieve()
                     .bodyToMono(Boolean.class)
                 .onErrorResume(e -> {
-                    System.out.println("Bucket service is unavailable, triggering rollback.");
+                    log.info("Bucket service is unavailable, triggering rollback.");
                     return Mono.error(new RuntimeException("Bucket service is unavailable"));
                 });
 

@@ -20,7 +20,6 @@ public class OrchController {
 
     @PostMapping
     Mono<Boolean> start(@RequestBody OrderDTO orderDTO) {
-        System.out.println(orderDTO);
         return orchService.start(orderDTO);
 
     }

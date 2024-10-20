@@ -8,6 +8,7 @@ import com.serjnn.SagaOrchestrator.steps.ClientBalanceStep;
 import com.serjnn.SagaOrchestrator.steps.OrderStep;
 import com.serjnn.SagaOrchestrator.steps.SagaStep;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -17,6 +18,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OrchService {
 
 
@@ -30,7 +32,7 @@ public class OrchService {
 
 
     public Mono<Boolean> start(OrderDTO orderDTO) {
-        System.out.println("starting transaction");
+        log.info("starting transaction");
 
         return Flux.fromIterable(getSteps())
                 .concatMap(step -> step.process(orderDTO)
@@ -45,7 +47,7 @@ public class OrchService {
                             }
                         })
                         .onErrorResume(e -> {
-                            System.out.println("Error in process: " + e.getMessage() + ", triggering rollback.");
+                            log.info("Error in process: " + e.getMessage() + ", triggering rollback.");
                             step.setStatus(SagaStepStatus.FAILED);
 
                             return this.revert(orderDTO).then(Mono.just(false));

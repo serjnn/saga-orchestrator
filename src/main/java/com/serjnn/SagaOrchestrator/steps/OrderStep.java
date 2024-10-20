@@ -2,12 +2,14 @@ package com.serjnn.SagaOrchestrator.steps;
 
 import com.serjnn.SagaOrchestrator.dto.OrderDTO;
 import com.serjnn.SagaOrchestrator.enums.SagaStepStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 @Component
+@Slf4j
 public class OrderStep implements SagaStep {
     private SagaStepStatus status = SagaStepStatus.PENDING;
 
@@ -21,7 +23,7 @@ public class OrderStep implements SagaStep {
 
     @Override
     public Mono<Boolean> process(OrderDTO orderDTO) {
-        System.out.println("order process");
+        log.info("order process");
 
         return webClient.post()
                 .uri("lb://order/api/v1/create")
@@ -29,16 +31,15 @@ public class OrderStep implements SagaStep {
                 .exchangeToMono(response -> {
                     if (response.statusCode().is2xxSuccessful()) {
                         setStatus(SagaStepStatus.COMPLETE);
-                        System.out.println("order " + getStatus());
                         return Mono.just(true);
                     } else {
                         setStatus(SagaStepStatus.FAILED);
-                        System.out.println("order failed with status: " + response.statusCode());
+                        log.info("order failed with status: " + response.statusCode());
                         return Mono.just(false);
                     }
                 })
                 .onErrorResume(e -> {
-                    System.out.println("order service is unavailable, triggering rollback.");
+                    log.info("order service is unavailable, triggering rollback.");
                     setStatus(SagaStepStatus.FAILED);
                     return Mono.error(new RuntimeException("order service is unavailable"));
                 });
@@ -50,7 +51,7 @@ public class OrderStep implements SagaStep {
 
     @Override
     public Mono<Boolean> revert(OrderDTO orderDTO) {
-        System.out.println("order revert");
+        log.info("order revert");
 
         return webClient.post()
                     .uri("lb://order/api/v1/remove")
